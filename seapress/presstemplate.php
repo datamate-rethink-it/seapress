@@ -1,4 +1,7 @@
 <?php
+
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 $paths = plugin_dir_url(__FILE__);
 
 $header_template = <<<HEADER
@@ -34,20 +37,14 @@ $main_template = <<<MAIN
     }
     </style>
 
-    <!-- Bootstrap styles -->
     <link href="$paths/css/bootstrap.min.css" rel="stylesheet">
     <link href="$paths/css/bootstrap-theme.min.css" rel="stylesheet">
 
-    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
-    <!--[if lt IE 9]>
       <script src="$paths/js/html5shiv.min.js"></script>
-    <![endif]-->
 
 
     </head>
 <body>
-    <!-- Fixed navbar -->
-
     <div class="container">
     ##OTHER_CONTENT##
     ##TABLE_RESULTS##
@@ -57,41 +54,16 @@ $main_template = <<<MAIN
     <script src="$paths/js/bootstrap.min.js"></script>
     <script src="$paths/js/footable.all.min.js" type="text/javascript"></script>
 
-         <!-- Footable start -->
-    <script type="text/javascript">
-$('.footable').footable({
-    breakpoints: {
-        phone: 380,
-        tablet: 690
-    }
-});
-
-    $(document).ready(function(){
-
-      $("#clear_filter").click(function(){
-        $('.footable').trigger('footable_clear_filter');
-      });
-
-
-});
-
-
-    </script>
-
 MAIN;
 
 
 $login_template = <<<LOGIN
 
-    <!-- Bootstrap styles -->
     <link href="$paths/css/bootstrap.min.css" rel="stylesheet">
     <link href="$paths/css/bootstrap-theme.min.css" rel="stylesheet">
     <link href="$paths/css/login.css" rel="stylesheet">
 
-    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
-    <!--[if lt IE 9]>
-      <script src="$paths/js/html5shiv.min.js"></script>
-    <![endif]-->
+    <script src="$paths/js/html5shiv.min.js"></script>
 
 
       </head>
