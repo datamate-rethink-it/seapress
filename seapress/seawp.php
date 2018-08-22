@@ -51,11 +51,31 @@ if (isset($_POST['login'])){
 
 // Upload in Media Library, POST
 
-/*
-if (isset($_SESSION['token'])){
+if (isset($_GET['upload'])){
 $upload_dir = wp_upload_dir();
-$image_data = file_get_contents('https://i.imgur.com/NErFV6F.jpg');
-$filename = basename('test.jpg');
+
+$url = $_SESSION['hostname'] . '/api2/repos/' . $_GET['repo'] . '/file/?p=/' . $_GET['file'] . '&reuse=1';
+
+$ch = curl_init ($url);
+curl_setopt($ch, CURLOPT_HEADER, 0);
+curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+    'Authorization: Token ' . $_SESSION['token'],
+));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+curl_setopt($ch, CURLOPT_BINARYTRANSFER,1);
+$raw=curl_exec($ch);
+curl_close ($ch);
+
+echo $raw;
+
+$raw2 = str_replace('"', "", $raw);
+
+echo $raw2;
+
+$image_data = file_get_contents($raw2);
+$filename = $_GET['file'];
+
+
 if(wp_mkdir_p($upload_dir['path']))
     $file = $upload_dir['path'] . '/' . $filename;
 else
@@ -63,8 +83,19 @@ else
 file_put_contents($file, $image_data);
 
 $wp_filetype = wp_check_filetype($filename, null );
+$attachment = array(
+    'post_mime_type' => $wp_filetype['type'],
+    'post_title' => sanitize_file_name($filename),
+    'post_content' => '',
+    'post_status' => 'inherit'
+);
+$attach_id = wp_insert_attachment( $attachment, $file, $post_ID );
+require_once(ABSPATH . 'wp-admin/includes/image.php');
+$attach_data = wp_generate_attachment_metadata( $attach_id, $file );
+wp_update_attachment_metadata( $attach_id, $attach_data );
+
+set_post_thumbnail( $post_ID, $attach_id );
 }
-*/
 
 // Seapress Library Content
 
@@ -131,7 +162,7 @@ TABLE_RESULTS;
 
             $table_results.=<<<TABLE_RESULTS
     <tr>
-        <td><img src="img/file.png" alt="File" height="24" width="24">{$array_value['name']} <div class="pull-right"><a href="?$target_file={$_GET['repo']}/file/?p=/{$_GET['dir']}/&file={$array_value['name']}" title="Upload {$array_value['name']}"><input type="submit" value="Upload Image" name="submit"></span></button></a></div></td>
+        <td><img src="img/file.png" alt="File" height="24" width="24">{$array_value['name']} <div class="pull-right"><a href="?upload=true&repo={$_GET['repo']}&file={$array_value['name']}" title="Upload {$array_value['name']}"><input type="submit" value="Upload Image" name="submit"></span></button></a></div></td>
 
         <td data-value="{$array_value['size']}">$format_bytes</a> </td>
         <td data-value="{$array_value['mtime']}">$time_elapsed</td>
