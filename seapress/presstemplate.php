@@ -3,6 +3,10 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 $paths = plugin_dir_url(__FILE__);
+$max_upload = (int)(ini_get('upload_max_filesize'));
+$max_post = (int)(ini_get('post_max_size'));
+$memory_limit = (int)(ini_get('memory_limit'));
+$upload_mb = min($max_upload, $max_post, $memory_limit);
 
 $header_template = <<<HEADER
 <!DOCTYPE html>
@@ -29,6 +33,7 @@ $main_template = <<<MAIN
     <!-- Footable modified styles -->
     <link href="$paths/css/footable.mod.core.css" rel="stylesheet" type="text/css" />
     <link href="$paths/css/footable.mod.standalone.css" rel="stylesheet" type="text/css" />
+    <link href="$paths/css/styles.css" rel="stylesheet" type="text/css" />
 
     <!-- 19px to make the container go all the way to the bottom of the topbar -->
     <style>
@@ -39,7 +44,9 @@ $main_template = <<<MAIN
 
     <link href="$paths/css/bootstrap.min.css" rel="stylesheet">
     <link href="$paths/css/bootstrap-theme.min.css" rel="stylesheet">
-
+    <script type="text/javascript">
+        var ajaxurl = "<?php echo admin_url('admin-ajax.php'); ?>";
+        </script>
       <script src="$paths/js/html5shiv.min.js"></script>
 
 
@@ -52,7 +59,8 @@ $main_template = <<<MAIN
 
     <script src="$paths/js/jquery.min.js"></script>
     <script src="$paths/js/bootstrap.min.js"></script>
-    <script src="$paths/js/footable.all.min.js" type="text/javascript"></script>
+  <!--  <script src="$paths/js/footable.all.min.js" type="text/javascript"></script>-->
+        <script src="$paths/js/upload.js"></script>
 
 MAIN;
 
@@ -86,6 +94,7 @@ $login_template = <<<LOGIN
                <span class="input-group-addon"><i class="glyphicon glyphicon-globe"></i></span>
            <input type="hostname" class="form-control"  name="hostname" id="hostname" placeholder="Cloud Url" required>
            </div>
+
            <p></p>
            <input name="login" type="hidden" value="Einloggen">
            <button class="btn btn-lg btn-primary btn-block" type="submit">Login</button>

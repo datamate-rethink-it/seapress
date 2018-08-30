@@ -1,11 +1,13 @@
 <?php
+
+
 $path = $_SERVER['DOCUMENT_ROOT'];
 error_reporting(0);
 include_once $path . '/wp-config.php';
 include_once $path . '/wp-load.php';
 include_once $path . '/wp-includes/pluggable.php';
 include_once $path . '/wp-admin/includes/image.php';
-
+include_once $path . '/wp-admin/includes/file.php';
 require_once $path . '/wp-load.php';
 require_once $path . '/wp-admin/includes/taxonomy.php';
 
@@ -24,12 +26,20 @@ wp_enqueue_script('jquery');
 // This will enqueue the Media Uploader script
 wp_enqueue_media();
 
+// die if user isnt logged in into Wordpress
+if(!is_user_logged_in()){
+  echo "Please log in first.";
+  die;
+}
+
 // Initialize Login
 
 if (isset($_POST['login'])){
+
     $username=$_POST['username'];
     $password=$_POST['password'];
     $hostname=$_POST['hostname'];
+
     $token=1;
     $token=seafileLogin($username,$password,$hostname);
     if (!isset($token['token'])){
@@ -49,59 +59,84 @@ if (isset($_POST['login'])){
     header("Location:$basename_file");
 }
 
+if (isset($_GET['logout'])){
+session_destroy();
+echo "<p> Erfolgreich ausgeloggt.</p>";
+die;
+}
+
 // Upload in Media Library, POST
 
 if (isset($_GET['upload'])){
-$upload_dir = wp_upload_dir();
+      if ( !function_exists('media_handle_upload') ) {
+          require_once(ABSPATH . "wp-admin" . '/includes/image.php');
+          require_once(ABSPATH . "wp-admin" . '/includes/file.php');
+          require_once(ABSPATH . "wp-admin" . '/includes/media.php');
+        }
+    $upload_dir = wp_upload_dir();
 
-$url = $_SESSION['hostname'] . '/api2/repos/' . $_GET['repo'] . '/file/?p=/' . $_GET['file'] . '&reuse=1';
+    $url = $_SESSION['hostname'] . '/api2/repos/' . $_GET['repo'] . '/file/?p=/' . $_GET['file'] . '&reuse=1';
 
-$ch = curl_init ($url);
-curl_setopt($ch, CURLOPT_HEADER, 0);
-curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-    'Authorization: Token ' . $_SESSION['token'],
-));
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-curl_setopt($ch, CURLOPT_BINARYTRANSFER,1);
-$raw=curl_exec($ch);
-curl_close ($ch);
+    $ch = curl_init ($url);
+    curl_setopt($ch, CURLOPT_HEADER, 0);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        'Authorization: Token ' . $_SESSION['token'],
+    ));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_BINARYTRANSFER,1);
+    $raw=curl_exec($ch);
+    curl_close ($ch);
 
-echo $raw;
+    $raw2 = str_replace('"', "", $raw);
+    //Nur zum debug in js console!
+    echo $raw2 . " ";
 
-$raw2 = str_replace('"', "", $raw);
+    $filename = $_GET['file'];
 
-echo $raw2;
+    $tmp = download_url( $raw2 );
+    if( is_wp_error( $tmp ) ){
+        // download failed, handle error
+    }
+    $post_id = 0;
+    $desc = $_GET['file'];
+    $file_array = array();
 
-$image_data = file_get_contents($raw2);
-$filename = $_GET['file'];
+    // Set variables for storage
+    // fix file filename for query strings
+    preg_match('/[^\?]+\.(jpg|jpe|jpeg|gif|png|xls|xlsx|doc|docx|zip|ppt|pptx)/i', $url, $matches);
+    $file_array['name'] = basename($matches[0]);
+    $file_array['tmp_name'] = $tmp;
 
+    // If error storing temporarily, unlink
+    if ( is_wp_error( $tmp ) ) {
+      @unlink($file_array['tmp_name']);
+      $file_array['tmp_name'] = '';
+    }
 
-if(wp_mkdir_p($upload_dir['path']))
-    $file = $upload_dir['path'] . '/' . $filename;
-else
-    $file = $upload_dir['basedir'] . '/' . $filename;
-file_put_contents($file, $image_data);
+    // do the validation and storage stuff
+    $id = media_handle_sideload( $file_array, $post_id, $desc );
 
-$wp_filetype = wp_check_filetype($filename, null );
-$attachment = array(
-    'post_mime_type' => $wp_filetype['type'],
-    'post_title' => sanitize_file_name($filename),
-    'post_content' => '',
-    'post_status' => 'inherit'
-);
-$attach_id = wp_insert_attachment( $attachment, $file, $post_ID );
-require_once(ABSPATH . 'wp-admin/includes/image.php');
-$attach_data = wp_generate_attachment_metadata( $attach_id, $file );
-wp_update_attachment_metadata( $attach_id, $attach_data );
-
-set_post_thumbnail( $post_ID, $attach_id );
+    // If error storing permanently, unlink
+    if ( is_wp_error($id) ) {
+      @unlink($file_array['tmp_name']);
+      return $id;
+    }
+    die;
 }
+
+//Infos für max File upload
+$paths = plugin_dir_url(__FILE__);
+$max_upload = (int)(ini_get('upload_max_filesize'));
+$max_post = (int)(ini_get('post_max_size'));
+$memory_limit = (int)(ini_get('memory_limit'));
+$upload_mb = min($max_upload, $max_post, $memory_limit);
 
 // Seapress Library Content
 
 if(isset($_GET['dir']) AND isset($_SESSION['token'])){
 
     $table_results=<<<TABLE_RESULTS
+    <p style="position:fixed;top:0px;right:0px;padding:2px;background-color: #fff;">max allowed Upload: $upload_mb MB | <a href="$paths/seawp.php?logout">Logout</a></p>
 
 <table class="footable" data-filter="#filter"">
     <thead>
@@ -116,15 +151,18 @@ TABLE_RESULTS;
 
     $library="/api2/repos/" . $_GET['repo'] . "/dir/?p=/" . $_GET['dir'] . "/";
     $repo_list = seafileApi('GET',$library,'',$_SESSION['token'],$_SESSION['hostname']);
-    $repo_name = $_GET['repo_name'];
+    echo"<pre>";
+    print_r($repo_list);
+    echo"</pre>";
+    $repo_name = rawurlencode($_GET['repo_name']);
     $dirc = cut_last_occurence($_GET['dir'],"/");
-
+    $direncode = rawurlencode($dirc);
     if ($_GET['dir']!=""){
         $table_results.=<<<TABLE_RESULTS
 
     <tr class="footable-disabled">
         <td colspan="3" class="footable-disabled">
-            <a href="?dir=$dirc&repo={$_GET['repo']}&repo_name=$repo_name"><img src="$paths/img/folder.png" alt="Back" height="24" width="24">..</a>
+            <a href="?dir={$direncode}&repo={$_GET['repo']}&repo_name=$repo_name"><img src="$paths/img/folder.png" alt="Back" height="24" width="24">..</a>
         </td>
     </tr>
 TABLE_RESULTS;
@@ -140,37 +178,47 @@ TABLE_RESULTS;
 TABLE_RESULTS;
 
     }
-
-
+    //if(isset($repo_list) && !is_array($repo_list)){
     foreach ($repo_list as $array_value) {
 
         if($array_value['type']=="dir"){
             $time_elapsed=time_elapsed_string($array_value['mtime'],'1');
+            $direncode = rawurlencode($array_value['name']);
+
+            echo $direncode;
+
             $table_results.=<<<TABLE_RESULTS
 
     <tr>
-        <td><img src="$paths/img/folder.png" alt="Dir" height="24" width="24"><a href="?dir={$_GET['dir']}/{$array_value['name']}&repo={$_GET['repo']}&repo_name=$repo_name">{$array_value['name']}</td>
-        <td>&nbsp;</td>
+        <td><img src="$paths/img/folder.png" alt="Dir" height="24" width="24"><a href="?dir={$direncode}/&repo={$_GET['repo']}&repo_name=$repo_name">{$array_value['name']}</td>
+        <td>Test &nbsp;</td>
         <td data-value="{$array_value['mtime']}">$time_elapsed</td>
 
     </tr>
 TABLE_RESULTS;
 
             }else{
+              $ext = pathinfo($array_value['name'], PATHINFO_EXTENSION);
+              $avail_exts = array('ai','avi','css','csv','dbf','doc','dwg','exe','fla','html','iso','js','jpg','jpeg','json','mp3','mp4','pdf','png','ppt','psd','rtf','svg','txt','xls','xml','zip');
+                if(in_array($ext, $avail_exts)){
+                  $file_img = $ext;
+                }else{ $file_img = 'file';}
             $time_elapsed=time_elapsed_string($array_value['mtime'],'1');
             $format_bytes=formatBytes($array_value['size']);
-
+            $direncode = urlencode($_GET['dir']);
             $table_results.=<<<TABLE_RESULTS
     <tr>
-        <td><img src="img/file.png" alt="File" height="24" width="24">{$array_value['name']} <div class="pull-right"><a href="?upload=true&repo={$_GET['repo']}&file={$array_value['name']}" title="Upload {$array_value['name']}"><input type="submit" value="Upload Image" name="submit"></span></button></a></div></td>
+        <td><img src="img/file-icons/JPEG/{$file_img}.jpg" alt="File" height="24" width="24">{$array_value['name']} <div class="pull-right"><a href="#" class="seapress-upload" data-path="{$direncode}/" data-repo="{$_GET['repo']}" data-file="{$array_value['name']}" title="Upload {$array_value['name']}">Upload</a></div></td>
 
-        <td data-value="{$array_value['size']}">$format_bytes</a> </td>
+        <td data-value="{$array_value['size']}">$format_bytes</a></td>
         <td data-value="{$array_value['mtime']}">$time_elapsed</td>
     </tr>
 TABLE_RESULTS;
 
         }
     }
+ // }else{echo $repo_list;}
+
     $table_results.= '  </tbody>';
 
     $table_results.='</table>';
@@ -197,7 +245,6 @@ TABLE_RESULTS;
     }
     $other_content.="</ol>";
 
-
     $main_template = str_replace("##TABLE_RESULTS##", $table_results, $main_template);
     $main_template = str_replace("##OTHER_CONTENT##", $other_content, $main_template);
 
@@ -217,8 +264,9 @@ TABLE_RESULTS;
 // Library List
 
 if (isset($_SESSION['token'])){
-    $table_results=<<<TABLE_RESULTS
 
+    $table_results=<<<TABLE_RESULTS
+<p style="position:fixed;top:0px;right:0px;padding:2px;background-color: #fff;">max allowed Upload: $upload_mb MB | <a href="$paths/seawp.php?logout">Logout</a></p>
 <table class="footable" data-filter="#filter">
     <thead>
         <tr>

@@ -40,7 +40,7 @@
 .footable > thead > tr > th,
 .footable > thead > tr > td {
   background-color: #F5F5F5;
-  
+
   -webkit-box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
   -moz-box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;

@@ -43,4 +43,22 @@ function load_wp_media_files() {
 }
 add_action( 'admin_enqueue_scripts', 'load_wp_media_files' );
 
+//add custom js
+
+function wptuts_scripts_basic()
+{
+    // Register the script like this for a plugin:
+    wp_register_script( 'seapress-script', plugins_url( '/js/upload.js', __FILE__ ) );
+
+    // For either a plugin or a theme, you can then enqueue the script:
+    wp_enqueue_script( 'seapress-script' );
+}
+add_action( 'admin_enqueue_scripts', 'wptuts_scripts_basic' );
+
+
+
+
+
+
+
 ?>

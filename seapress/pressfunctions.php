@@ -54,6 +54,7 @@ function seafileApi($method = 'GET', $path = '', $data = array(), $token, $hostn
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         $result = curl_exec($ch);
+        echo $result;
 
         if (curl_error($ch) || !isset($result)) {
             curl_error($ch);
@@ -116,6 +117,25 @@ function time_elapsed_string($mtime){
         $output[0] = "Unknown";
     }
     return $output[0] ." ". $output[1] ." ". $output[2];
+}
+
+
+add_filter( 'the_content', 'insert_img_to_post', 20 );
+
+function insert_img_to_post( $content ) {
+
+    global $post;
+    $post_id = $post->ID;
+
+    if ( is_single() )
+
+        $content = sprintf(
+            '<img class="post-icon" src="%s" alt="Post icon" title=""/>',
+            wp_get_attachment_url(get_post_meta( $post_id, '_thumbnail_id', true )),
+            $content
+        );
+
+    return $content;
 }
 
 ?>
